@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "ajit-agent-os",
   "displayName": "Ajit Agent OS",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Extraction that refuses to guess. Every field must cite a span the source actually contains, and planted instructions are withheld rather than obeyed.",
   "author": {
     "name": "Ajit Nayak",

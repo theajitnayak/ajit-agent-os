@@ -46,6 +46,45 @@ accurately and still gets a quarter of the traps wrong, because a true quotation
 of the wrong sentence is still grounded. Verification kills invention. It does
 not create judgement. [Read what that means](docs/grounding.md#known-limits).
 
+## Invoices: proof is not enough, the document must also add up
+
+A model can quote every figure on an invoice correctly and still be wrong,
+because it took a right-looking number from the wrong row. That value is
+genuinely printed in the document, so span checking accepts it.
+
+Arithmetic catches what grounding cannot.
+
+```bash
+python -m ajit_os.documents examples/invoice.txt examples/invoice-proposal.json
+```
+
+```
+## NEEDS REVIEW
+- subtotal_plus_tax_equals_total: expected 4130.00, document says 3000.00
+
+| Field | Value | Line |
+| invoice_number | INV-2026-0042 | 2 |
+| total         | 3000.00       | 6 |
+
+Arithmetic: 4 checks ran, 1 failed.
+```
+
+Every field in that run is grounded, including the wrong total. The document
+simply does not agree with itself, and that is the tell.
+
+Checks that run: each line extends (quantity times unit price equals the line
+amount), line amounts sum to the subtotal, and subtotal plus tax minus discount
+equals the total. A check with a missing input is **skipped, never guessed**, and
+a document where nothing could be checked never earns approval.
+
+Dates get the same treatment as numbers. `14/03/2026` resolves. `03/04/2026` is
+refused, because it is 3 April or 4 March depending on where the sender lives.
+Two-digit years are refused outright.
+
+The output is a receipt: the document's SHA-256, every field with its line
+number and quote, every check with its result, and a verdict. Exit code is 0 for
+safe to post and 1 for needs review, so it drops straight into a pipeline.
+
 ## Start here
 
 ```bash

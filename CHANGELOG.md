@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.3.0 - 2026-09-19
+
+Documents that must agree with themselves, not only cite themselves.
+
+- Added `documents`: invoice-shaped extraction with cross-field arithmetic.
+  Line extension, line sum against subtotal, and subtotal plus tax minus
+  discount against total. A check with a missing input is skipped rather than
+  guessed, and a document where no check could run never earns approval.
+- Added date reading that refuses `03/04/2026` because it is 3 April or 4 March
+  by convention, resolves `14/03/2026`, and refuses two-digit years outright.
+- Added proof receipts: document SHA-256, every field with line number and
+  quote, every arithmetic check, and a posting verdict.
+- Added a CLI that exits 0 for safe to post and 1 for needs review.
+- Extended `grounding.verify` with optional date fields, backwards compatible.
+
+This closes the gap documented in 0.2.0. Span grounding stops a model inventing
+a figure. It cannot stop a model quoting the wrong figure accurately, which on an
+invoice is the expensive failure. Arithmetic catches it.
+
 ## 0.2.0 - 2026-09-19
 
 Natural-language input, with verification standing between the model and the output.

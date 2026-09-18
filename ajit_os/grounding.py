@@ -10,6 +10,7 @@ grounded quote is not the same thing as a trustworthy one.
 """
 import re
 import unicodedata
+from datetime import date as _date
 from decimal import Decimal, InvalidOperation
 
 NUMERIC_FIELDS = frozenset({"quantity", "unit_price"})
@@ -18,6 +19,7 @@ QUOTE_ABSENT = "quote_not_in_source"
 VALUE_ABSENT = "value_not_in_quote"
 UNTRUSTED_SPAN = "untrusted_span"
 AMBIGUOUS_NUMBER = "ambiguous_number"
+AMBIGUOUS_DATE = "ambiguous_date"
 MALFORMED = "malformed_candidate"
 CONTRADICTED = "contradicted_by_sibling"
 
@@ -110,6 +112,91 @@ def read_number(token):
     return [], True
 
 
+_MONTHS = {name: number for number, names in enumerate((
+    ("jan", "january"), ("feb", "february"), ("mar", "march"), ("apr", "april"),
+    ("may",), ("jun", "june"), ("jul", "july"), ("aug", "august"),
+    ("sep", "sept", "september"), ("oct", "october"), ("nov", "november"),
+    ("dec", "december")), start=1) for name in names}
+
+_ISO_DATE = re.compile(r"\A([0-9]{4})-([0-9]{1,2})-([0-9]{1,2})\Z")
+_SLASHED_DATE = re.compile(r"\A([0-9]{1,4})[/.-]([0-9]{1,2})[/.-]([0-9]{1,4})\Z")
+_DAY_FIRST_TEXT = re.compile(r"\A([0-9]{1,2})\s+([a-z]{3,9})\.?,?\s+([0-9]{4})\Z", re.IGNORECASE)
+_MONTH_FIRST_TEXT = re.compile(r"\A([a-z]{3,9})\.?\s+([0-9]{1,2})(?:st|nd|rd|th)?,?\s+([0-9]{4})\Z", re.IGNORECASE)
+
+_DATE_TOKEN = re.compile(
+    r"[0-9]{4}[/.-][0-9]{1,2}[/.-][0-9]{1,2}"
+    r"|[0-9]{1,2}[/.-][0-9]{1,2}[/.-][0-9]{2,4}"
+    r"|[0-9]{1,2}(?:st|nd|rd|th)?\s+[A-Za-z]{3,9}\.?,?\s+[0-9]{4}"
+    r"|[A-Za-z]{3,9}\.?\s+[0-9]{1,2}(?:st|nd|rd|th)?,?\s+[0-9]{4}",
+    re.IGNORECASE)
+
+
+def _iso(year, month, day):
+    try:
+        return _date(int(year), int(month), int(day)).isoformat()
+    except ValueError:
+        return None
+
+
+def read_date(token):
+    """Return (possible ISO dates, ambiguous).
+
+    `03/04/2026` is 3 April or 4 March depending on where you live. There is no
+    safe default, so both readings are returned and the caller refuses to pick.
+    Two-digit years are ambiguous in the century and are never resolved.
+    """
+    token = token.strip().rstrip(".,")
+    if not token:
+        return [], True
+
+    match = _ISO_DATE.match(token)
+    if match:
+        value = _iso(*match.groups())
+        return ([value] if value else []), False
+
+    for pattern, order in ((_DAY_FIRST_TEXT, "dmy"), (_MONTH_FIRST_TEXT, "mdy")):
+        match = pattern.match(token)
+        if match:
+            day, name, year = match.groups() if order == "dmy" else (
+                match.group(2), match.group(1), match.group(3))
+            month = _MONTHS.get(name.lower())
+            value = _iso(year, month, day) if month else None
+            return ([value] if value else []), False
+
+    match = _SLASHED_DATE.match(token)
+    if match:
+        first, second, third = match.groups()
+        if len(first) == 4:                       # year first, unambiguous
+            value = _iso(first, second, third)
+            return ([value] if value else []), False
+        if len(third) != 4:                       # two-digit year, century unknown
+            return [], True
+        day_first = _iso(third, second, first)    # DD/MM/YYYY
+        month_first = _iso(third, first, second)  # MM/DD/YYYY
+        readings = [value for value in (day_first, month_first) if value]
+        if not readings:
+            return [], True
+        if day_first and month_first and day_first != month_first:
+            return readings, True                 # both plausible, refuse to choose
+        return readings[:1], False
+    return [], True
+
+
+def _date_support(value, span):
+    """A date field is supported only when the span names that exact day, unambiguously."""
+    if not _ISO_DATE.match(value) or _iso(*_ISO_DATE.match(value).groups()) != value:
+        return MALFORMED
+    ambiguous_hit = False
+    for token in _DATE_TOKEN.findall(span):
+        readings, ambiguous = read_date(token)
+        if value in readings:
+            if ambiguous:
+                ambiguous_hit = True
+                continue
+            return None
+    return AMBIGUOUS_DATE if ambiguous_hit else VALUE_ABSENT
+
+
 def instruction_shaped(folded_span):
     """True when the span reads as a command to the reader rather than as deal text."""
     return any(pattern.search(folded_span) for pattern in _INSTRUCTION_PATTERNS)
@@ -139,7 +226,7 @@ def _numeric_support(value, span):
     return (AMBIGUOUS_NUMBER if ambiguous_hit else VALUE_ABSENT), []
 
 
-def verify(source, candidate, numeric_fields=NUMERIC_FIELDS):
+def verify(source, candidate, numeric_fields=NUMERIC_FIELDS, date_fields=frozenset()):
     """Check one proposed field against the source. Returns a decision record."""
     field = candidate.get("field") if isinstance(candidate, dict) else None
     value = candidate.get("value") if isinstance(candidate, dict) else None
@@ -174,7 +261,12 @@ def verify(source, candidate, numeric_fields=NUMERIC_FIELDS):
         record["reason"] = UNTRUSTED_SPAN
         return record
 
-    if field in numeric_fields:
+    if field in date_fields:
+        reason = _date_support(value, span)
+        if reason:
+            record["reason"] = reason
+            return record
+    elif field in numeric_fields:
         reason, _ = _numeric_support(value, span)
         if reason:
             record["reason"] = reason
@@ -190,11 +282,11 @@ def verify(source, candidate, numeric_fields=NUMERIC_FIELDS):
     return record
 
 
-def verify_all(source, candidates, numeric_fields=NUMERIC_FIELDS):
+def verify_all(source, candidates, numeric_fields=NUMERIC_FIELDS, date_fields=frozenset()):
     """Verify every candidate, then withhold fields claimed twice with different values."""
     if not isinstance(candidates, list):
         return []
-    records = [verify(source, candidate, numeric_fields) for candidate in candidates]
+    records = [verify(source, candidate, numeric_fields, date_fields) for candidate in candidates]
     claimed = {}
     for record in records:
         if record["status"] == "accepted":

@@ -1,0 +1,11 @@
+ACME SUPPLIES LIMITED
+Invoice INV-2026-0042
+Invoice date: 14/03/2026
+Bill to: Orbit Studios
+
+Design retainer   2 x 1500.00   3000.00
+Hosting           1 x 500.00     500.00
+
+Subtotal  3500.00
+Tax        630.00
+Total     4130.00
