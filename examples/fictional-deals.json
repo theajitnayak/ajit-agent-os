@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "deals": [
+    {
+      "deal_id": "DEMO-A",
+      "buyer": "Fictional Buyer A",
+      "seller": "Fictional Seller A",
+      "messages": [
+        {"message_id": "a1", "speaker": "buyer", "text": "item: design review\nquantity: 2\nunit: session\ncurrency: INR\nunit_price: 1500\nintent: request"},
+        {"message_id": "a2", "speaker": "seller", "text": "item: design review\nquantity: 2\nunit: session\ncurrency: INR\nunit_price: 1800\nintent: offer"}
+      ]
+    },
+    {
+      "deal_id": "DEMO-B",
+      "buyer": "Fictional Buyer B",
+      "seller": "Fictional Seller B",
+      "messages": [
+        {"message_id": "b1", "speaker": "buyer", "text": "item: landing page\nquantity: 1\nunit: project\ncurrency: INR\nintent: request"},
+        {"message_id": "b2", "speaker": "seller", "text": "Need to review the scope before quoting."}
+      ]
+    }
+  ]
+}
