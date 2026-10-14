@@ -10,15 +10,16 @@ KEYS = set(FIELDS) | {"intent"}
 INTENTS = {"request", "offer", "accept", "reject"}
 
 
-def positive(value):
+def positive(value, allow_zero=False):
     if not re.fullmatch(r"[0-9]{1,18}(?:\.[0-9]{1,8})?", value):
         raise ValueError("Expected decimal digits (at most 18 integer and 8 fractional digits)")
     try:
         number = Decimal(value)
     except (InvalidOperation, ValueError):
         raise ValueError("Expected a positive decimal") from None
-    if not number.is_finite() or number <= 0:
-        raise ValueError("Expected a finite positive decimal")
+    if not number.is_finite() or number < 0 or (number == 0 and not allow_zero):
+        raise ValueError("Expected a finite non-negative decimal" if allow_zero
+                         else "Expected a finite positive decimal")
     return format(number.normalize(), "f")
 
 
@@ -45,7 +46,7 @@ def extract(text):
             continue
         try:
             if key in {"quantity", "unit_price"}:
-                value = positive(value)
+                value = positive(value, allow_zero=key == "unit_price")
             elif key == "currency":
                 if value not in {"INR", "USD", "EUR", "GBP"}:
                     raise ValueError("Unsupported or ambiguous currency")
