@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "about": "Additional fictional cases. Kept separate from the original benchmark so historical results remain comparable. Expected answers were written before running the stubs.",
+  "cases": [
+    {"id":"email-date-not-quantity","category":"trap","source":"Your quote request was received on 15 October. Pricing will follow after review.","forbid_fields":["unit_price","quantity","currency"],"note":"A date is not an order quantity or a quoted price."},
+    {"id":"expiry-not-order","category":"trap","source":"The quote expires in 30 days. The rate has not been supplied.","forbid_fields":["unit_price","quantity"],"note":"Validity duration is not the order quantity."},
+    {"id":"old-customer-not-current","category":"trap","source":"Last year's unrelated customer paid INR 2400. We have not agreed your rate.","forbid_values":{"unit_price":["2400"]},"note":"A quoted price belonging to another customer is not the current price."},
+    {"id":"request-not-acceptance","category":"absent","source":"Please review this offer and tell us whether you accept it.","forbid_fields":["intent"],"note":"The literal word accept appears in a question. It is not an acceptance."},
+    {"id":"range-not-fixed-price","category":"hedged","source":"Indicative cost is between INR 2000 and INR 3000. A fixed quote will follow.","forbid_fields":["unit_price"],"note":"A range must not silently become a single agreed unit price."},
+    {"id":"explicit-zero-fee","category":"grounded","source":"unit_price: 0\ncurrency: INR\nquantity: 1","expect":{"unit_price":"0","currency":"INR","quantity":"1"},"note":"A real zero fee is evidence. Missing data is a different state."},
+    {"id":"budget-not-seller-quote","category":"trap","source":"Buyer budget is INR 4000 per session. The seller has not quoted a rate.","forbid_values":{"unit_price":["4000"]},"note":"The buyer's spending limit must not become the seller's quote."},
+    {"id":"approval-pending","category":"absent","source":"Application received. Approval is pending and no amount has been awarded.","forbid_fields":["unit_price","quantity","intent"],"note":"Acknowledgement is not approval or an awarded amount."}
+  ]
+}

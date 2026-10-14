@@ -35,7 +35,7 @@ class DealTests(unittest.TestCase):
         self.assertTrue(warnings)
 
     def test_ambiguous_and_nonfinite_prices_rejected(self):
-        for value in ("NaN", "Infinity", "-1", "0", "1,000", "10 or 20"):
+        for value in ("NaN", "Infinity", "-1", "1,000", "10 or 20"):
             with self.subTest(value=value):
                 self.assertNotIn("unit_price", extract("unit_price: " + value)[0])
 

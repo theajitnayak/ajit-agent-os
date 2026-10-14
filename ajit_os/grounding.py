@@ -211,9 +211,9 @@ def _cautions(folded_span):
     return notes
 
 
-def _numeric_support(value, span):
+def _numeric_support(value, span, allow_zero=False):
     target = _decimal(value) if _PLAIN.match(value) else None
-    if target is None or target <= 0:
+    if target is None or target < 0 or (target == 0 and not allow_zero):
         return MALFORMED, []
     ambiguous_hit = False
     for token in _NUMBER_TOKEN.findall(span):
@@ -267,7 +267,7 @@ def verify(source, candidate, numeric_fields=NUMERIC_FIELDS, date_fields=frozens
             record["reason"] = reason
             return record
     elif field in numeric_fields:
-        reason, _ = _numeric_support(value, span)
+        reason, _ = _numeric_support(value, span, allow_zero=field == "unit_price")
         if reason:
             record["reason"] = reason
             return record
